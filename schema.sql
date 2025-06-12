@@ -137,10 +137,7 @@ CONSTRAINT exam_error_exam_fk FOREIGN KEY(exam_id) REFERENCES exam(id)
 
 CREATE TABLE activity_type(
 id INT PRIMARY KEY AUTO_INCREMENT,
-name VARCHAR(25) NOT NULL,
-presenter_id INT NOT NULL,
-student_level_required VARCHAR(10) NOT NULL CHECK (student_level_required IN('تلاوة', 'غيبي', 'انتقالي')),
-CONSTRAINT activity_type_supervisor_fk FOREIGN KEY (presenter_id) REFERENCES supervisor(id)
+name VARCHAR(25) NOT NULL
 );
 
 CREATE TABLE activity(
@@ -148,9 +145,11 @@ id INT PRIMARY KEY AUTO_INCREMENT,
 title varchar(100),
 activity_type_id INT NOT NULL,
 coordinator_id INT NOT NULL,
-activity_date DATE NOT NULL,
+presenter_id INT NOT NULL,
+activity_date TIMESTAMP NOT NULL,
 CONSTRAINT activity_coordinator_fk FOREIGN KEY(coordinator_id) REFERENCES supervisor(id),
-CONSTRAINT activity_activity_type_fk FOREIGN KEY(activity_type_id) REFERENCES activity_type(id)
+CONSTRAINT activity_activity_type_fk FOREIGN KEY(activity_type_id) REFERENCES activity_type(id),
+CONSTRAINT activity_presenter_fk FOREIGN KEY (presenter_id) REFERENCES supervisor(id)
 -- CONSTRAINT activity_coordinator_presenter_not_equal_check CHECK (presenter_id <> coordinator_id)
 );
 

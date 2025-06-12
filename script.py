@@ -61,6 +61,8 @@ class Seeder:
             "INSERT INTO supervisor(id, role, became_supervisor_at, retired_at)\nVALUES"
         )
         supervisor_values = "(%s, '%s', '%s', '%s'),\n"
+
+        assitant_ids = []
         for supervisor_id in supervisor_ids:
             supervisor = (
                 supervisor_id,
@@ -68,12 +70,30 @@ class Seeder:
                 self.fake.date(),
                 self.fake.date(),
             )
+            if supervisor[1] == "مساعد":
+                assitant_ids.append(supervisor[0])
+
             formatted_values = tuple([self.converter.escape(v) for v in supervisor])
             supervisor_insert = supervisor_insert + (
                 supervisor_values % formatted_values
             )
         supervisor_insert = supervisor_insert.strip()[0:-1] + ";" + ("\n" * 3)
-        return supervisor_insert, supervisor_ids
+        return supervisor_insert, supervisor_ids, assitant_ids
+
+    def seed_supervisor_assistants(self, assistant_ids):
+        if not assistant_ids:
+            return ""
+
+        # Create UPDATE statements for each assistant
+        updates = []
+        other_supervisors = [s for s in range(91, 101) if s not in assistant_ids][:3]
+        for _ in range(len(other_supervisors)):
+            supervisor_id = random.choice(other_supervisors)
+            assistant_id = random.choice(assistant_ids)
+            update = f"UPDATE supervisor SET assistant_id = {assistant_id} WHERE id = {supervisor_id};"
+            updates.append(update)
+
+        return "\n".join(updates) + ("\n" * 3)
 
     def seed_supervision(self, student_ids, supervisor_ids):
         insert_supervision = "INSERT INTO student_supervisor(id, student_id, supervisor_id, retired_at)\nVALUES"
@@ -95,12 +115,12 @@ class Seeder:
         return sqlparse.format(insert_supervision)
 
     def seed_levels(self):
-        insert_levels = f"""\
+        insert_levels = """\
             INSERT INTO level(id, name, description, plan)
-            VALUES(1, '{self.converter.escape("تلاوة")}', 'lorem ipsem', 'lorem ipsem'),
-            (2, '{self.converter.escape("غيبي")}', 'lorem ipsem', 'lorem ipsem'),
-            (3, '{self.converter.escape("انتقالي")}', 'lorem ipsem', 'lorem ipsem'),
-            (4, '{self.converter.escape("اجازة")}', 'lorem ipsem', 'lorem ipsem');
+            VALUES(1, 'تلاوة', 'مستوى التجويد ضعيف', 'تلاوة 4 أجزاء على المسمع وتعلم كتاب لغتي وقرآني وعند الانتهاء ينقل للانتقالي'),
+            (2, 'غيبي', 'مستوى التجويد جيّد', 'تعلم كتاب المنهج الموحّد في التجويد و تسميع عدد من الصفحات حاضرًا حتّى يصبح تجويده ممتازًا وبناءً على تقاريره ينقل إلى الغيبي'),
+            (3, 'انتقالي', 'مستوى التجويد ممتاز', 'تسميع الصفحات غيبًا وإجراء سبر لكل جزء ينهيه وعند حفظه لجميع الأجزاء يبدأ بالإجازة'),
+            (4, 'اجازة', 'مستوى التجويد ممتاز وتم حفظ وسبر جميع أجزاء القرآن', 'تعلّم نظم المقدمة الجزريّة وإعادة سبر جميع الأجزاء عند مسمع واحد فقط');
         """ + ("\n" * 3)
         level_ids = [1, 2, 3, 4]
         return sqlparse.format(insert_levels), level_ids
@@ -244,18 +264,29 @@ class Seeder:
         insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
         return sqlparse.format(insert)
 
-    def seed_activity_type(self, supervisor_ids):
-        insert = "INSERT INTO activity_type(id, name, presenter_id, student_level_required)\nVALUES"
-        values = "(%s, '%s', %s, '%s'),\n"
+    def seed_activity_type(self):
+        insert = "INSERT INTO activity_type(id, name)\nVALUES"
+        values = "(%s, '%s'),\n"
         activity_type_ids = []
-        for i in range(6):
+        activity_types = [
+            "حديث",
+            "فقه",
+            "عقيدة",
+            "سيرة",
+            "صحابة",
+            "تدبّر",
+            "لغتي وقرآني",
+            "نظم الجزريّة",
+            "تجويد",
+            "أسماء الله الحسنى",
+            "تفسير",
+        ]
+        for i in range(10):
             activity_type_id = i + 1
             activity_type_ids.append(activity_type_id)
             activity_type = (
                 activity_type_id,
-                self.fake.word(),
-                random.choice(supervisor_ids),
-                random.choice(["غيبي", "انتقالي"]),
+                activity_types[i],
             )
             formatted_values = tuple([self.converter.escape(v) for v in activity_type])
             insert = insert + (values % formatted_values)
@@ -263,8 +294,8 @@ class Seeder:
         return sqlparse.format(insert), activity_type_ids
 
     def seed_activity(self, activity_type_ids, supervisor_ids):
-        insert = "INSERT INTO activity(id, title, activity_type_id, coordinator_id, activity_date)\nVALUES"
-        values = "(%s, '%s', %s, %s, '%s'),\n"
+        insert = "INSERT INTO activity(id, title, activity_type_id, coordinator_id, presenter_id, activity_date)\nVALUES"
+        values = "(%s, '%s', %s, %s, %s,'%s'),\n"
         activity_ids = []
         for i in range(20):
             activity_id = i + 1
@@ -274,10 +305,12 @@ class Seeder:
                 self.fake.sentence(4),
                 random.choice(activity_type_ids),
                 random.choice(supervisor_ids),
+                random.choice(supervisor_ids),
                 self.fake.date(),
             )
             formatted_values = tuple([self.converter.escape(v) for v in activity])
             insert = insert + (values % formatted_values)
+
         insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
         return sqlparse.format(insert), activity_ids
 
@@ -306,7 +339,10 @@ def main():
     seeder = Seeder(fake, converter)
     person_insert, person_ids = seeder.seed_person()
     student_insert, student_ids = seeder.seed_student(person_ids)
-    supervisor_insert, supervisor_ids = seeder.seed_supervisor(person_ids, student_ids)
+    supervisor_insert, supervisor_ids, assistant_ids = seeder.seed_supervisor(
+        person_ids, student_ids
+    )
+    supervisor_assistants_insert = seeder.seed_supervisor_assistants(assistant_ids)
     supervision_insert = seeder.seed_supervision(student_ids, supervisor_ids)
     levels_insert, level_ids = seeder.seed_levels()
     student_levels_insert = seeder.seed_student_levels(student_ids, level_ids)
@@ -319,7 +355,7 @@ def main():
     person_certificate_insert = seeder.seed_person_certificate(supervisor_ids, cert_ids)
     exam_insert, exam_ids = seeder.seed_exam(student_ids, supervisor_ids)
     exam_error_insert = seeder.seed_exam_error(exam_ids, error_ids)
-    activity_type_insert, activity_type_ids = seeder.seed_activity_type(supervisor_ids)
+    activity_type_insert, activity_type_ids = seeder.seed_activity_type()
     activity_insert, activity_ids = seeder.seed_activity(
         activity_type_ids, supervisor_ids
     )
@@ -331,6 +367,8 @@ def main():
             + student_insert
             + "\n"
             + supervisor_insert
+            + "\n"
+            + supervisor_assistants_insert
             + "\n"
             + supervision_insert
             + "\n"
