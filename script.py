@@ -10,9 +10,6 @@ class Seeder:
         self.fake = fake
         self.converter = converter
 
-    def seed_all(self):
-        pass
-
     def seed_person(self):
         person_insert = "INSERT INTO person (id, fname, lname, year_of_study, contact_number, join_date, email, address)\nVALUES"
         person_values = "(%s, '%s', '%s', %s, '%s', '%s', '%s', '%s'),\n"
@@ -36,8 +33,8 @@ class Seeder:
         return person_insert, person_ids
 
     def seed_student(self, person_ids):
-        student_insert = "INSERT INTO student(id, quranic_achievement, status)\nVALUES"
-        student_values = "(%s, '%s', '%s'),\n"
+        student_insert = "INSERT INTO student(id, status)\nVALUES"
+        student_values = "(%s, '%s'),\n"
         student_ids = []
         # Use the first 90 person_ids for students
         for i in range(90):
@@ -45,7 +42,6 @@ class Seeder:
             student_ids.append(student_id)
             student = (
                 student_id,
-                "random stuff",
                 random.choice(["نشط", "منقطع", "متخرج"]),
             )
             formatted_values = tuple([self.converter.escape(v) for v in student])
@@ -131,6 +127,7 @@ class Seeder:
         )
         values = "(%s, %s, %s, '%s'),\n"
         student_level_id = 1
+        student_level_ids = []
         for student_id in student_ids:
             student = (
                 student_level_id,
@@ -138,11 +135,12 @@ class Seeder:
                 student_id,
                 self.fake.date(),
             )
+            student_level_ids.append(student_level_id)
             student_level_id += 1
             formatted_values = tuple(self.converter.escape(v) for v in student)
             insert = insert + (values % formatted_values)
         insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
-        return sqlparse.format(insert)
+        return sqlparse.format(insert), student_level_ids
 
     def seed_errors(self):
         insert_error = f"""\
@@ -154,11 +152,9 @@ class Seeder:
         error_ids = [1, 2, 3]
         return sqlparse.format(insert_error), error_ids
 
-    def seed_reports(self, supervision_ids):
-        insert = (
-            "INSERT INTO report(id, student_supervisor_id, start_page, qty)\nVALUES"
-        )
-        values = "(%s, %s, '%s', '%s'),\n"
+    def seed_reports(self, supervision_ids, student_level_ids):
+        insert = "INSERT INTO report(id, student_supervisor_id, student_level_id, start_page, qty)\nVALUES"
+        values = "(%s, %s, %s, '%s', '%s'),\n"
         report_ids = []
         for i, supervision_id in enumerate(supervision_ids):
             for _ in range(10):
@@ -167,6 +163,7 @@ class Seeder:
                 report = (
                     report_id,
                     supervision_id,
+                    random.choice(student_level_ids),
                     random.randint(1, 604),
                     random.randint(3, 21),
                 )
@@ -185,8 +182,8 @@ class Seeder:
                     report_error_id,
                     report_id,
                     random.choice(error_ids),
-                    "lorem ipsem",
-                    "lorem ipsem",
+                    self.fake.sentence()[0:45],
+                    self.fake.word(),
                 )
                 report_error_id += 1
                 formatted_values = tuple(
@@ -196,39 +193,9 @@ class Seeder:
         insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
         return sqlparse.format(insert)
 
-    def seed_certificate(self):
-        insert = "INSERT INTO certificate(id, reading)\nVALUES"
-        values = "(%s, '%s'),\n"
-        cert_ids = []
-        for i in range(10):
-            cert_id = i + 1
-            cert_ids.append(cert_id)
-            certificate = (cert_id, self.fake.text(20))
-            formatted_values = tuple([self.converter.escape(v) for v in certificate])
-            insert = insert + (values % formatted_values)
-        insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
-        return sqlparse.format(insert), cert_ids
-
-    def seed_person_certificate(self, supervisor_ids, cert_ids):
-        insert = "INSERT INTO person_certificate(id, certificate_id, person_id, date_acquired)\nVALUES"
-        values = "(%s, '%s', '%s', '%s'),\n"
-        person_cert_id = 1
-        for supervisor_id in supervisor_ids[:3]:
-            cert_per = (
-                person_cert_id,
-                random.choice(cert_ids),
-                supervisor_id,
-                self.fake.date(),
-            )
-            person_cert_id += 1
-            formatted_values = tuple([self.converter.escape(v) for v in cert_per])
-            insert = insert + (values % formatted_values)
-        insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
-        return sqlparse.format(insert)
-
-    def seed_exam(self, student_ids, supervisor_ids):
-        insert = "INSERT INTO exam(id, student_id, supervisor_id, exam_type, part, qty, exam_date)\nVALUES"
-        values = "(%s, %s, %s, '%s', %s, %s, '%s'),\n"
+    def seed_exam(self, student_ids, supervisor_ids, student_level_ids):
+        insert = "INSERT INTO exam(id, student_id, supervisor_id, student_level_id, exam_type, part, qty, exam_date)\nVALUES"
+        values = "(%s, %s, %s, %s, '%s', %s, %s, '%s'),\n"
         exam_ids = []
         for i, student_id in enumerate(student_ids[23:76]):
             exam_id = i + 1
@@ -237,7 +204,8 @@ class Seeder:
                 exam_id,
                 student_id,
                 random.choice(supervisor_ids),
-                random.choice(["انتقالي", " مرحلي"]),
+                random.choice(student_level_ids),
+                random.choice(["انتقالي", "مرحلي"]),
                 random.randint(1, 30),
                 random.randint(1, 30),
                 self.fake.date(),
@@ -332,6 +300,25 @@ class Seeder:
         insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
         return sqlparse.format(insert)
 
+    def seed_achievement(self, person_ids):
+        insert = "INSERT INTO achievement(id, num_of_parts, type_of_achievement, date_aquired, person_id)\nVALUES"
+        values = "(%s, %s, '%s', '%s', %s),\n"
+        achievement_types = ["تلاوة", "غيبي", "اجازة"]
+        achievement_id = 1
+        for _ in range(20):
+            achievement = (
+                achievement_id,
+                random.randint(1, 30),
+                random.choice(achievement_types),
+                self.fake.date(),
+                random.choice(person_ids),
+            )
+            achievement_id += 1
+            formatted_values = tuple([self.converter.escape(v) for v in achievement])
+            insert = insert + (values % formatted_values)
+        insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
+        return sqlparse.format(insert)
+
 
 def main():
     fake = Faker("ar_SA")
@@ -345,24 +332,52 @@ def main():
     supervisor_assistants_insert = seeder.seed_supervisor_assistants(assistant_ids)
     supervision_insert = seeder.seed_supervision(student_ids, supervisor_ids)
     levels_insert, level_ids = seeder.seed_levels()
-    student_levels_insert = seeder.seed_student_levels(student_ids, level_ids)
+    student_levels_insert, student_level_ids = seeder.seed_student_levels(
+        student_ids, level_ids
+    )
     errors_insert, error_ids = seeder.seed_errors()
     # Generate supervision IDs (1 to len(student_ids))
     supervision_ids = list(range(1, len(student_ids) + 1))
-    reports_insert, report_ids = seeder.seed_reports(supervision_ids)
+    reports_insert, report_ids = seeder.seed_reports(supervision_ids, student_level_ids)
     report_errors_insert = seeder.seed_report_errors(report_ids, error_ids)
-    certificate_insert, cert_ids = seeder.seed_certificate()
-    person_certificate_insert = seeder.seed_person_certificate(supervisor_ids, cert_ids)
-    exam_insert, exam_ids = seeder.seed_exam(student_ids, supervisor_ids)
+    achievement_insert = seeder.seed_achievement(person_ids)
+    exam_insert, exam_ids = seeder.seed_exam(
+        student_ids, supervisor_ids, student_level_ids
+    )
     exam_error_insert = seeder.seed_exam_error(exam_ids, error_ids)
     activity_type_insert, activity_type_ids = seeder.seed_activity_type()
     activity_insert, activity_ids = seeder.seed_activity(
         activity_type_ids, supervisor_ids
     )
     activity_student_insert = seeder.seed_acvitity_student(activity_ids, student_ids)
+
+    # MySQL configuration statements
+    mysql_config = """\
+        SET NAMES utf8mb4;
+        SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+        SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+        SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL';
+        SET @old_autocommit=@@autocommit;
+
+        USE wrattel;
+
+        SET AUTOCOMMIT=0;
+
+    """
+
+    mysql_cleanup = """\
+        COMMIT;
+
+        SET SQL_MODE=@OLD_SQL_MODE;
+        SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+        SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+        SET autocommit=@old_autocommit;
+    """
+
     with open("./data.sql", "w") as f:
         f.write(
-            person_insert
+            mysql_config
+            + person_insert
             + "\n"
             + student_insert
             + "\n"
@@ -382,9 +397,7 @@ def main():
             + "\n"
             + report_errors_insert
             + "\n"
-            + certificate_insert
-            + "\n"
-            + person_certificate_insert
+            + achievement_insert
             + "\n"
             + exam_insert
             + "\n"
@@ -395,6 +408,7 @@ def main():
             + activity_insert
             + "\n"
             + activity_student_insert
+            + mysql_cleanup
         )
 
 

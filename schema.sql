@@ -32,7 +32,6 @@ plan VARCHAR(150) NOT NULL
 
 CREATE TABLE student(
 id INT PRIMARY KEY,
-quranic_achievement varchar(100),
 status VARCHAR(10) NOT NULL CHECK(status IN ('نشط', 'منقطع', 'متخرج')),
 CONSTRAINT student_person_fk FOREIGN KEY(id) REFERENCES person(id)
 );
@@ -56,7 +55,8 @@ CONSTRAINT supervisor_person_fk FOREIGN KEY(id) REFERENCES person(id)
 );
 
 ALTER TABLE supervisor
-ADD CONSTRAINT supervisor_assistant_fk FOREIGN KEY(assistant_id) REFERENCES supervisor(id);
+ADD CONSTRAINT supervisor_assistant_fk FOREIGN KEY(assistant_id) REFERENCES supervisor(id),
+ADD CONSTRAINT suprevisor_assistant_not_equal CHECK(assistant_id <> id);
 
 
 CREATE TABLE student_supervisor(
@@ -70,27 +70,24 @@ CONSTRAINT supervisor_student_supervisor_fk FOREIGN KEY(supervisor_id) REFERENCE
 CONSTRAINT student_supervisor_student_not_equal_supervisor CHECK (student_id <> supervisor_id)
 );
 
-CREATE TABLE certificate(
+CREATE TABLE achievement(
 id INT PRIMARY KEY AUTO_INCREMENT,
-reading varchar(25) NOT NULL
-);
-
-CREATE TABLE person_certificate(
-id INT PRIMARY KEY AUTO_INCREMENT,
-certificate_id INT NOT NULL,
+num_of_parts SMALLINT UNSIGNED CHECK(num_of_parts BETWEEN 1 AND 30),
+type_of_achievement VARCHAR(10) NOT NULL CHECK(type_of_achievement IN ('تلاوة', 'غيبي','اجازة')),
+date_aquired DATE NOT NULL,
 person_id INT NOT NULL,
-date_acquired TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-CONSTRAINT person_certificate_person_fk FOREIGN KEY(person_id) REFERENCES person(id),
-CONSTRAINT person_certificate_certificate_fk FOREIGN KEY(certificate_id) REFERENCES certificate(id)
+CONSTRAINT achievement_person_fk FOREIGN KEY(person_id) REFERENCES person(id)
 );
 
-Create table report(
+CREATE TABLE report(
 id INT PRIMARY KEY AUTO_INCREMENT,
 student_supervisor_id INT NOT NULL,
+student_level_id INT NOT NULL,
 start_page SMALLINT UNSIGNED NOT NULL,
 qty SMALLINT UNSIGNED NOT NULL,
 report_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-CONSTRAINT report_student_supervisor_id FOREIGN KEY(student_supervisor_id) REFERENCES student_supervisor(id)
+CONSTRAINT report_student_supervisor_id FOREIGN KEY(student_supervisor_id) REFERENCES student_supervisor(id),
+CONSTRAINT report_student_level_id FOREIGN KEY(student_level_id) REFERENCES student_level(id)
 );
 
 CREATE TABLE error (
@@ -113,13 +110,15 @@ CREATE TABLE exam (
 id INT PRIMARY KEY AUTO_INCREMENT,
 student_id INT NOT NULL,
 supervisor_id INT NOT NULL,
-exam_type VARCHAR(15) CHECK (exam_type IN ( 'انتقالي' , ' مرحلي')),
+student_level_id INT NOT NULL,
+exam_type VARCHAR(15) CHECK (exam_type IN ('انتقالي' , 'مرحلي')),
 part SMALLINT UNSIGNED CHECK(part BETWEEN 1 AND 30),
 qty SMALLINT UNSIGNED CHECK(qty BETWEEN 1 AND 30),
 exam_date DATE,
 CONSTRAINT exam_student_fk FOREIGN KEY(student_id) REFERENCES student(id),
 CONSTRAINT exam_supervisor_fk FOREIGN KEY(supervisor_id) REFERENCES supervisor(id),
-CONSTRAINT exam_student_not_equal_supervisor CHECK (student_id <> supervisor_id)
+CONSTRAINT exam_student_not_equal_supervisor CHECK (student_id <> supervisor_id),
+CONSTRAINT exam_student_level_fk FOREIGN KEY(student_level_id) REFERENCES student_level(id)
 );
 
 CREATE TABLE exam_error (
@@ -133,7 +132,6 @@ CONSTRAINT exam_error_exam_fk FOREIGN KEY(exam_id) REFERENCES exam(id)
 );
 
 
--- how do we keep a log trail of the presenters?
 
 CREATE TABLE activity_type(
 id INT PRIMARY KEY AUTO_INCREMENT,
@@ -150,7 +148,6 @@ activity_date TIMESTAMP NOT NULL,
 CONSTRAINT activity_coordinator_fk FOREIGN KEY(coordinator_id) REFERENCES supervisor(id),
 CONSTRAINT activity_activity_type_fk FOREIGN KEY(activity_type_id) REFERENCES activity_type(id),
 CONSTRAINT activity_presenter_fk FOREIGN KEY (presenter_id) REFERENCES supervisor(id)
--- CONSTRAINT activity_coordinator_presenter_not_equal_check CHECK (presenter_id <> coordinator_id)
 );
 
 create table activity_student (
