@@ -18,7 +18,7 @@ fname VARCHAR(50) NOT NULL,
 lname VARCHAR(50) NOT NULL,
 year_of_study SMALLINT UNSIGNED CHECK(year_of_study IN(1,2,3,4,5)),
 contact_number VARCHAR(12),
-join_date DATE,
+join_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 email VARCHAR(50),
 address VARCHAR(75)
 );
@@ -47,7 +47,7 @@ CONSTRAINT student_level_level_fk FOREIGN KEY(level_id) REFERENCES level(id)
 
 CREATE TABLE supervisor(
 id INT PRIMARY KEY,
-role VARCHAR(20) CHECK(role IN('مسمع','مساعد', 'مشرف')) NOT NULL,
+role VARCHAR(20) CHECK(role IN('مسمع','مساعد', 'مشرف', 'سبر')) NOT NULL,
 became_supervisor_at DATE NOT NULL,
 retired_at DATE,
 assistant_id INT,
@@ -72,7 +72,8 @@ CONSTRAINT student_supervisor_student_not_equal_supervisor CHECK (student_id <> 
 
 CREATE TABLE achievement(
 id INT PRIMARY KEY AUTO_INCREMENT,
-num_of_parts SMALLINT UNSIGNED CHECK(num_of_parts BETWEEN 1 AND 30),
+part SMALLINT UNSIGNED CHECK(part BETWEEN 1 AND 30),
+qty SMALLINT UNSIGNED CHECK(qty BETWEEN 1 AND 30),
 type_of_achievement VARCHAR(10) NOT NULL CHECK(type_of_achievement IN ('تلاوة', 'غيبي','اجازة')),
 date_aquired DATE NOT NULL,
 person_id INT NOT NULL,
@@ -108,16 +109,13 @@ CONSTRAINT report_error_error_fk FOREIGN KEY(error_id) REFERENCES error(id)
 
 CREATE TABLE exam (
 id INT PRIMARY KEY AUTO_INCREMENT,
-student_id INT NOT NULL,
 supervisor_id INT NOT NULL,
 student_level_id INT NOT NULL,
 exam_type VARCHAR(15) CHECK (exam_type IN ('انتقالي' , 'مرحلي')),
 part SMALLINT UNSIGNED CHECK(part BETWEEN 1 AND 30),
 qty SMALLINT UNSIGNED CHECK(qty BETWEEN 1 AND 30),
 exam_date DATE,
-CONSTRAINT exam_student_fk FOREIGN KEY(student_id) REFERENCES student(id),
 CONSTRAINT exam_supervisor_fk FOREIGN KEY(supervisor_id) REFERENCES supervisor(id),
-CONSTRAINT exam_student_not_equal_supervisor CHECK (student_id <> supervisor_id),
 CONSTRAINT exam_student_level_fk FOREIGN KEY(student_level_id) REFERENCES student_level(id)
 );
 

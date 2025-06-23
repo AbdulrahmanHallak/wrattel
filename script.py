@@ -62,7 +62,7 @@ class Seeder:
         for supervisor_id in supervisor_ids:
             supervisor = (
                 supervisor_id,
-                random.choice(["مسمع", "مساعد", "مشرف"]),
+                random.choice(["مسمع", "مساعد", "مشرف", "سبر"]),
                 self.fake.date(),
                 self.fake.date(),
             )
@@ -193,18 +193,17 @@ class Seeder:
         insert = insert.strip()[0:-1] + ";" + ("\n" * 3)
         return sqlparse.format(insert)
 
-    def seed_exam(self, student_ids, supervisor_ids, student_level_ids):
-        insert = "INSERT INTO exam(id, student_id, supervisor_id, student_level_id, exam_type, part, qty, exam_date)\nVALUES"
-        values = "(%s, %s, %s, %s, '%s', %s, %s, '%s'),\n"
+    def seed_exam(self, supervisor_ids, student_level_ids):
+        insert = "INSERT INTO exam(id, supervisor_id, student_level_id, exam_type, part, qty, exam_date)\nVALUES"
+        values = "(%s, %s, %s, '%s', %s, %s, '%s'),\n"
         exam_ids = []
-        for i, student_id in enumerate(student_ids[23:76]):
+        for i, student_level_id in enumerate(student_level_ids[23:76]):
             exam_id = i + 1
             exam_ids.append(exam_id)
             exam = (
                 exam_id,
-                student_id,
                 random.choice(supervisor_ids),
-                random.choice(student_level_ids),
+                student_level_id,
                 random.choice(["انتقالي", "مرحلي"]),
                 random.randint(1, 30),
                 random.randint(1, 30),
@@ -301,14 +300,15 @@ class Seeder:
         return sqlparse.format(insert)
 
     def seed_achievement(self, person_ids):
-        insert = "INSERT INTO achievement(id, num_of_parts, type_of_achievement, date_aquired, person_id)\nVALUES"
-        values = "(%s, %s, '%s', '%s', %s),\n"
+        insert = "INSERT INTO achievement(id, part, qty, type_of_achievement, date_aquired, person_id)\nVALUES"
+        values = "(%s, %s, %s,'%s', '%s', %s),\n"
         achievement_types = ["تلاوة", "غيبي", "اجازة"]
         achievement_id = 1
         for _ in range(20):
             achievement = (
                 achievement_id,
-                random.randint(1, 30),
+                start := random.randint(1, 30),
+                random.randint(1, 30 - start + 1),
                 random.choice(achievement_types),
                 self.fake.date(),
                 random.choice(person_ids),
@@ -341,9 +341,7 @@ def main():
     reports_insert, report_ids = seeder.seed_reports(supervision_ids, student_level_ids)
     report_errors_insert = seeder.seed_report_errors(report_ids, error_ids)
     achievement_insert = seeder.seed_achievement(person_ids)
-    exam_insert, exam_ids = seeder.seed_exam(
-        student_ids, supervisor_ids, student_level_ids
-    )
+    exam_insert, exam_ids = seeder.seed_exam(supervisor_ids, student_level_ids)
     exam_error_insert = seeder.seed_exam_error(exam_ids, error_ids)
     activity_type_insert, activity_type_ids = seeder.seed_activity_type()
     activity_insert, activity_ids = seeder.seed_activity(
