@@ -6,6 +6,7 @@ set DB_NAME=wrattel
 set DB_USER=postgres
 set INIT_SCRIPT=postgres_init.sql
 set TABLES_SCRIPT=postgres_schema.sql
+set DATA_SCRIPT=data.sql
 
 echo Creating database "%DB_NAME%"...
 
@@ -23,6 +24,12 @@ if ERRORLEVEL 1 (
     exit /b 1
 )
 
-echo Database "%DB_NAME%" initialized and tables created successfully.
+psql -U %DB_USER% -d %DB_NAME% -f %DATA_SCRIPT%
+if ERRORLEVEL 1 (
+    echo Failed to run %DATA_SCRIPT%
+    exit /b 1
+)
+
+echo Database "%DB_NAME%" initialized, tables created, and data seeded.
 
 endlocal
