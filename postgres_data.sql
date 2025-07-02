@@ -1,13 +1,5 @@
-        SET NAMES utf8mb4;
-        SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
-        SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
-        SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL';
-        SET @old_autocommit=@@autocommit;
-
-        USE wrattel;
-
-        SET AUTOCOMMIT=0;
-
+        SET search_path TO wrattel;
+        BEGIN;
     INSERT INTO person (id, fname, lname, year_of_study, contact_number, join_date, email, address)
 VALUES(1, 'شهد', 'المهنا', 2, '533-488-539', '1994-03-15', 'pal-sltn@hotmail.com', '11264 العليان Well Suite 963\nالعليانburgh, CT 62365'),
 (2, 'ناجح', 'آل بن لافي', 1, '929-304-881', '1975-05-15', 'elqyl@gmail.com', '95434 الراشد Pass\nWest سرحان, KY 09329'),
@@ -4285,10 +4277,4 @@ VALUES(1, '2', '50'),
 (597, '3', '64'),
 (598, '1', '63'),
 (599, '5', '51'),
-(600, '11', '13');        COMMIT;
-
-        SET SQL_MODE=@OLD_SQL_MODE;
-        SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
-        SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
-        SET autocommit=@old_autocommit;
-    
+(600, '11', '13');COMMIT;

@@ -50,8 +50,10 @@ class Seeder:
         return student_insert, student_ids
 
     def seed_supervisor(self, person_ids, student_ids):
-        # Use person_ids that are not in student_ids for supervisors
-        supervisor_ids = [pid for pid in person_ids if pid not in student_ids]
+        # Use person_ids that are not in student_ids for supervisors and ensure that
+        # some students are also supervisors.
+        students_not_supervisors = student_ids.copy()[:-3]
+        supervisor_ids = [pid for pid in person_ids if pid not in students_not_supervisors]
 
         supervisor_insert = (
             "INSERT INTO supervisor(id, role, became_supervisor_at, retired_at)\nVALUES"
@@ -59,6 +61,7 @@ class Seeder:
         supervisor_values = "(%s, '%s', '%s', '%s'),\n"
 
         assitant_ids = []
+        exam_supervisors_ids = []
         for supervisor_id in supervisor_ids:
             supervisor = (
                 supervisor_id,
@@ -69,12 +72,15 @@ class Seeder:
             if supervisor[1] == "مساعد":
                 assitant_ids.append(supervisor[0])
 
+            if supervisor[1] == "سبر":
+                exam_supervisors_ids.append(supervisor[0])
+
             formatted_values = tuple([self.converter.escape(v) for v in supervisor])
             supervisor_insert = supervisor_insert + (
                 supervisor_values % formatted_values
             )
         supervisor_insert = supervisor_insert.strip()[0:-1] + ";" + ("\n" * 3)
-        return supervisor_insert, supervisor_ids, assitant_ids
+        return supervisor_insert, supervisor_ids, assitant_ids, exam_supervisors_ids
 
     def seed_supervisor_assistants(self, assistant_ids):
         if not assistant_ids:
@@ -114,8 +120,8 @@ class Seeder:
         insert_levels = """\
             INSERT INTO level(id, name, description, plan)
             VALUES(1, 'تلاوة', 'مستوى التجويد ضعيف', 'تلاوة 4 أجزاء على المسمع وتعلم كتاب لغتي وقرآني وعند الانتهاء ينقل للانتقالي'),
-            (2, 'غيبي', 'مستوى التجويد جيّد', 'تعلم كتاب المنهج الموحّد في التجويد و تسميع عدد من الصفحات حاضرًا حتّى يصبح تجويده ممتازًا وبناءً على تقاريره ينقل إلى الغيبي'),
-            (3, 'انتقالي', 'مستوى التجويد ممتاز', 'تسميع الصفحات غيبًا وإجراء سبر لكل جزء ينهيه وعند حفظه لجميع الأجزاء يبدأ بالإجازة'),
+            (2, 'غيبي', 'مستوى التجويد ممتاز', 'تسميع الصفحات غيبًا وإجراء سبر لكل جزء ينهيه وعند حفظه لجميع الأجزاء يبدأ بالإجازة'),
+            (3, 'انتقالي', 'مستوى التجويد جيّد', 'تعلم كتاب المنهج الموحّد في التجويد و تسميع عدد من الصفحات حاضرًا حتّى يصبح تجويده ممتازًا وبناءً على تقاريره ينقل إلى الغيبي'),
             (4, 'اجازة', 'مستوى التجويد ممتاز وتم حفظ وسبر جميع أجزاء القرآن', 'تعلّم نظم المقدمة الجزريّة وإعادة سبر جميع الأجزاء عند مسمع واحد فقط');
         """ + ("\n" * 3)
         level_ids = [1, 2, 3, 4]
@@ -145,9 +151,9 @@ class Seeder:
     def seed_errors(self):
         insert_error = f"""\
             INSERT INTO error(id, error_type, score)
-            VALUES(1, '{self.converter.escape("تجويدي")}', {self.converter.escape(-4)}),
+            VALUES(1, '{self.converter.escape("تجويدي")}', {self.converter.escape(-2)}),
             (2, '{self.converter.escape("حفظي")}', {self.converter.escape(-3)}),
-            (3, '{self.converter.escape("تشكيلي")}', {self.converter.escape(-2)});
+            (3, '{self.converter.escape("تشكيلي")}', {self.converter.escape(-4)});
         """ + ("\n" * 3)
         error_ids = [1, 2, 3]
         return sqlparse.format(insert_error), error_ids
@@ -320,13 +326,46 @@ class Seeder:
         return sqlparse.format(insert)
 
 
+def get_mysql_config():
+    return """\
+        SET NAMES utf8mb4;
+        SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+        SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+        SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL';
+        SET @old_autocommit=@@autocommit;
+
+        USE wrattel;
+
+        SET AUTOCOMMIT=0;
+
+    """
+
+def get_mysql_cleanup():
+    return """\
+        COMMIT;
+
+        SET SQL_MODE=@OLD_SQL_MODE;
+        SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+        SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+        SET autocommit=@old_autocommit;
+    """
+
+def get_postgres_config():
+    return """\
+        SET search_path TO wrattel;
+        BEGIN;
+    """
+
+def get_postgres_cleanup():
+    return "COMMIT;\n"
+
 def main():
     fake = Faker("ar_SA")
     converter = MySQLConverter()
     seeder = Seeder(fake, converter)
     person_insert, person_ids = seeder.seed_person()
     student_insert, student_ids = seeder.seed_student(person_ids)
-    supervisor_insert, supervisor_ids, assistant_ids = seeder.seed_supervisor(
+    supervisor_insert, supervisor_ids, assistant_ids, exam_supervisors_ids = seeder.seed_supervisor(
         person_ids, student_ids
     )
     supervisor_assistants_insert = seeder.seed_supervisor_assistants(assistant_ids)
@@ -341,7 +380,7 @@ def main():
     reports_insert, report_ids = seeder.seed_reports(supervision_ids, student_level_ids)
     report_errors_insert = seeder.seed_report_errors(report_ids, error_ids)
     achievement_insert = seeder.seed_achievement(person_ids)
-    exam_insert, exam_ids = seeder.seed_exam(supervisor_ids, student_level_ids)
+    exam_insert, exam_ids = seeder.seed_exam(exam_supervisors_ids, student_level_ids)
     exam_error_insert = seeder.seed_exam_error(exam_ids, error_ids)
     activity_type_insert, activity_type_ids = seeder.seed_activity_type()
     activity_insert, activity_ids = seeder.seed_activity(
@@ -349,65 +388,48 @@ def main():
     )
     activity_student_insert = seeder.seed_acvitity_student(activity_ids, student_ids)
 
-    # MySQL configuration statements
-    mysql_config = """\
-        SET NAMES utf8mb4;
-        SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
-        SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
-        SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL';
-        SET @old_autocommit=@@autocommit;
+    # Compose the data body (all inserts)
+    data_body = (
+        person_insert
+        + "\n"
+        + student_insert
+        + "\n"
+        + supervisor_insert
+        + "\n"
+        + supervisor_assistants_insert
+        + "\n"
+        + supervision_insert
+        + "\n"
+        + levels_insert
+        + "\n"
+        + student_levels_insert
+        + "\n"
+        + errors_insert
+        + "\n"
+        + reports_insert
+        + "\n"
+        + report_errors_insert
+        + "\n"
+        + achievement_insert
+        + "\n"
+        + exam_insert
+        + "\n"
+        + exam_error_insert
+        + "\n"
+        + activity_type_insert
+        + "\n"
+        + activity_insert
+        + "\n"
+        + activity_student_insert
+    )
 
-        USE wrattel;
-
-        SET AUTOCOMMIT=0;
-
-    """
-
-    mysql_cleanup = """\
-        COMMIT;
-
-        SET SQL_MODE=@OLD_SQL_MODE;
-        SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
-        SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
-        SET autocommit=@old_autocommit;
-    """
-
+    # Write MySQL file
     with open("./data.sql", "w") as f:
-        f.write(
-            mysql_config
-            + person_insert
-            + "\n"
-            + student_insert
-            + "\n"
-            + supervisor_insert
-            + "\n"
-            + supervisor_assistants_insert
-            + "\n"
-            + supervision_insert
-            + "\n"
-            + levels_insert
-            + "\n"
-            + student_levels_insert
-            + "\n"
-            + errors_insert
-            + "\n"
-            + reports_insert
-            + "\n"
-            + report_errors_insert
-            + "\n"
-            + achievement_insert
-            + "\n"
-            + exam_insert
-            + "\n"
-            + exam_error_insert
-            + "\n"
-            + activity_type_insert
-            + "\n"
-            + activity_insert
-            + "\n"
-            + activity_student_insert
-            + mysql_cleanup
-        )
+        f.write(get_mysql_config() + data_body + get_mysql_cleanup())
+
+    # Write Postgres file
+    with open("./postgres_data.sql", "w") as f:
+        f.write(get_postgres_config() + data_body + get_postgres_cleanup())
 
 
 if __name__ == "__main__":

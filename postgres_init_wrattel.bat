@@ -6,7 +6,7 @@ set DB_NAME=wrattel
 set DB_USER=postgres
 set INIT_SCRIPT=postgres_init.sql
 set TABLES_SCRIPT=postgres_schema.sql
-set DATA_SCRIPT=data.sql
+set DATA_SCRIPT=postgres_data.sql
 
 echo Creating database "%DB_NAME%"...
 
